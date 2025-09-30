@@ -1,6 +1,7 @@
 import network
 import utime
 import json
+from config import CREDENTIALS_FILE
 
 def save_wifi_credentials(ssid, password):
     """
@@ -10,7 +11,7 @@ def save_wifi_credentials(ssid, password):
     :param password: The WiFi network password
     """
     credentials = {'ssid': ssid, 'password': password}
-    with open('wifi_credentials.json', 'w') as f:
+    with open(CREDENTIALS_FILE, 'w') as f:
         json.dump(credentials, f)
     print("WiFi credentials saved to file.")
 
@@ -39,7 +40,7 @@ def connect_to_wifi(ssid, password, max_attempts=10, delay=2):
         print("status in attempt: ", status)
         
         # Check if the device is connected
-        if status == 3:  # 2 is 'connected'
+        if status == 3:  # 3 is 'connected'
             print("Successfully connected to WiFi!")
             return True
         

@@ -4,7 +4,7 @@ import time
 import urequests
 import network
 import os
-import machine as _machine
+from config import DHT_PIN, LED_PIN, BUTTON_PIN, BASE_URL, STATION_ID, LONG_PRESS_TIME, POLL_INTERVAL, POLL_CHECKS, CREDENTIALS_FILE
 
 # Function to read data from DHT22 sensor
 def read_dht22(pin):
@@ -18,22 +18,11 @@ def read_dht22(pin):
 
 # Main function
 def main():
-    # Define DHT22 pin
-    dht_pin = 15  # Replace with the GPIO pin connected to the DHT22 sensor
-
-    sample_ip = ""
-    port = "8080"
-    station_id=001
-
-    # Base URL for the GET request
-    base_url = "https://intense-idea-281222.ue.r.appspot.com/inbound/"
     wlan = network.WLAN(network.STA_IF)
-    #wlan.active(True)
-    
     print("wlan status in temp.py:", wlan.status())
 
     # LED pin (same as used in main.py)
-    led = machine.Pin(16, machine.Pin.OUT)
+    led = machine.Pin(LED_PIN, machine.Pin.OUT)
 
     # persistent hold start (in milliseconds) across iterations
     hold_start_ms = None
@@ -41,12 +30,12 @@ def main():
     while True:
         try:
             # Read data from DHT22 sensor
-            temperature, humidity = read_dht22(dht_pin)
+            temperature, humidity = read_dht22(DHT_PIN)
             print("Temperature:", temperature, "F")
             print("Humidity:", humidity, "%")
 
             # Construct URL with temperature and humidity as data points
-            url = base_url + str(temperature) + "-" + str(humidity) + "-" + str(station_id) 
+            url = "{}{:.1f}-{:.1f}-{}".format(BASE_URL, temperature, humidity, STATION_ID)
             print("URL:", url)
 
             # Send GET request
@@ -54,54 +43,43 @@ def main():
             print("Response:", response.text)
             response.close()
 
-            # Check for long-press on the same button used in main.py (GPIO17).
+            # Check for long-press on the same button used in main.py.
             # If held for >= 10 seconds, delete wifi_credentials.json and restart.
-            button = machine.Pin(17, machine.Pin.IN, machine.Pin.PULL_UP)
+            button = machine.Pin(BUTTON_PIN, machine.Pin.IN, machine.Pin.PULL_UP)
 
             # Poll in small intervals while still performing sensor reads
-            poll_interval = 200  # milliseconds
-            checks = 5  # total ~1 second of polling between sensor cycles
-            for _ in range(checks):
+            for _ in range(POLL_CHECKS):
                 pressed = (button.value() == 0)  # active low
                 if pressed:
                     # Turn LED on while held
-                    try:
-                        led.on()
-                    except Exception:
-                        pass
+                    led.on()
 
                     now = time.ticks_ms()
                     if hold_start_ms is None:
                         hold_start_ms = now
                     else:
                         held_ms = time.ticks_diff(now, hold_start_ms)
-                        if held_ms >= 10000:  # 10 seconds
-                            print("Long press detected (>=10s). Removing wifi_credentials.json and restarting...")
+                        if held_ms >= LONG_PRESS_TIME:
+                            print("Long press detected. Removing credentials and restarting...")
                             try:
-                                if 'wifi_credentials.json' in os.listdir('.'):
-                                    os.remove('wifi_credentials.json')
-                                    print('wifi_credentials.json deleted')
+                                if CREDENTIALS_FILE in os.listdir('.'):
+                                    os.remove(CREDENTIALS_FILE)
+                                    print('Credentials deleted')
                                 else:
-                                    print('wifi_credentials.json not found')
+                                    print('Credentials file not found')
                             except Exception as e:
-                                print('Failed to delete wifi_credentials.json:', e)
+                                print('Failed to delete credentials:', e)
                             # Ensure LED is off before reset
-                            try:
-                                led.off()
-                            except Exception:
-                                pass
+                            led.off()
                             time.sleep(0.2)
-                            _machine.reset()
+                            machine.reset()
                 else:
                     # Button not pressed: turn LED off and reset hold timer
-                    try:
-                        led.off()
-                    except Exception:
-                        pass
+                    led.off()
                     hold_start_ms = None
 
                 # small delay in milliseconds
-                time.sleep(poll_interval/1000)
+                time.sleep(POLL_INTERVAL/1000)
 
             time.sleep(0.5)
         except Exception as e:

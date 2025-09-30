@@ -2,14 +2,18 @@ import machine
 import utime
 import network
 import json
-from conn import connect_to_wifi  # Import the connect_to_wifi function
+from conn import connect_to_wifi
+from config import BUTTON_PIN, LED_PIN, CLICK_TIMEOUT, CREDENTIALS_FILE
 
 # Define GPIO pins for button and LED
-button_pin = machine.Pin(17, machine.Pin.IN, machine.Pin.PULL_UP)
-led_pin = machine.Pin(16, machine.Pin.OUT)
+button_pin = machine.Pin(BUTTON_PIN, machine.Pin.IN, machine.Pin.PULL_UP)
+led_pin = machine.Pin(LED_PIN, machine.Pin.OUT)
 
+# Initialize variables
 click_count = 0
 last_click_time = utime.ticks_ms()
+
+# Ensure AP is disabled
 ap = network.WLAN(network.AP_IF)
 ap.active(False)
 
@@ -20,7 +24,7 @@ def load_wifi_credentials():
     :return: Tuple of (ssid, password) if credentials exist, otherwise (None, None)
     """
     try:
-        with open('wifi_credentials.json', 'r') as f:
+        with open(CREDENTIALS_FILE, 'r') as f:
             credentials = json.load(f)
             return credentials['ssid'], credentials['password']
     except Exception as e:
@@ -31,9 +35,7 @@ def load_wifi_credentials():
 ssid, password = load_wifi_credentials()
 if ssid and password:
     if connect_to_wifi(ssid, password):
-        print(ssid)
-        print(password)
-        print("WiFi connected successfully. Running new_1.py...")
+        print("WiFi connected successfully. Running temp_1.py...")
         import temp_1
         while True:
             pass  # Infinite loop to stop further execution
@@ -52,7 +54,7 @@ while True:
         
         click_count += 1
         current_time = utime.ticks_ms()
-        if utime.ticks_diff(current_time, last_click_time) > 1000:
+        if utime.ticks_diff(current_time, last_click_time) > CLICK_TIMEOUT:
             # If more than 1 second has elapsed since last click, reset count
             click_count = 1
         last_click_time = current_time
